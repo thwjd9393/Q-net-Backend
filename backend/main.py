@@ -24,6 +24,7 @@ from backend.recommendation_router import create_recommendation_router
 from backend.calendar_router import create_calendar_router
 from backend.calendar_oauth_router import create_calendar_oauth_router
 
+import logging
 
 app = FastAPI(
     title="Q-Net 백엔드 API",
@@ -40,6 +41,8 @@ app = FastAPI(
     ),
     redoc_url=None,
 )
+
+logger = logging.getLogger(__name__)
 
 # 설정값이 있으면 검사하고, 정확히 일치하는 주소만 허용한다.
 # 설정이 없으면 다른 출처의 브라우저 요청을 허용하지 않는다.
@@ -157,8 +160,16 @@ def list_certificates(
         raise HTTPException(status_code=503, detail="Render DATABASE_URL이 아직 설정되지 않았습니다.")
     try:
         return services.list_certificates(q.strip(), category, limit, offset)
-    except psycopg.Error:
-        raise HTTPException(status_code=503, detail="DB에서 종목을 조회할 수 없습니다. 연결과 테이블 적용 상태를 확인해주세요.") from None
+    except psycopg.Error as exc:
+        logger.error(
+            "자격증 조회 실패: error_type=%s sqlstate=%s",
+            type(exc).__name__,
+            exc.sqlstate,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="DB에서 종목을 조회할 수 없습니다. 연결과 테이블 적용 상태를 확인해주세요.",
+        ) from None
 
 
 @app.get(
